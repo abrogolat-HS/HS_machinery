@@ -4,8 +4,8 @@
 (*  Package: HSmachinery.m                                          *)
 (*  Description: Tools for working with HS generating systems       *)
 (*  Authors: Abrogolat, Qwen3.7, DeepSeek AI                        *)
-(*  Date: 2026-09-16                                                *)
-(*  Version: 1.1.0                                                  *)
+(*  Date: 2026-09-20                                                *)
+(*  Version: 1.1.1                                                  *)
 (* ================================================================ *)
 
 BeginPackage["HSmachinery`"]
@@ -47,8 +47,6 @@ homotopy of polynomial poly times exponential expression exp in the \
 spinor variables z and \[Theta], with homotopy parameter \[Tau] and \
 spinor shift q. degree must be 1 (linear in \[Theta]) or 2 (quadratic in \[Theta]). z, \[Theta] and q \
 must belong to $Spinors.";
-
-extractExponent::usage = "blah-blah";
 
 Begin["`Private`"]
 
@@ -141,34 +139,6 @@ extractExponent[exp_, u_, v_] := Module[
 
   {T, A, B, C}
 ];
-
-
-(* ---------- Helper: Convert conv to components ---------- *)
-convToComponents[expr_] := expr /. conv[a_, b_] :> comp[a, 1] comp[b, 2] - comp[a, 2] comp[b, 1]
-
-
-(* ---------- Helper: Generate all monomials of degree k from basis ---------- *)
-generateMonomials[basis_List, k_Integer] := Module[{n, expLists, monomials},
-  n = Length[basis];
-
-  If[k == 0, Return[{1}]];
-  If[n == 0, Return[{}]];
-
-  (* Generate all exponent lists that sum to k *)
-  expLists = Flatten[
-    Table[
-      Flatten[Permutations[PadRight[part, n]]],
-      {part, Join[{{k}}, IntegerPartitions[k]]}
-    ],
-    1
-  ];
-
-  (* Remove duplicates and generate monomials *)
-  expLists = DeleteDuplicates[expLists];
-  monomials = Times @@ (basis^#) & /@ expLists;
-
-  Union[monomials]
-]
 
 
 
@@ -280,9 +250,7 @@ integrateGaussian[polynom_, u_, v_, T_] := Module[
 
     (* Replace conv with explicit component form for integration *)
     term = term /. {
-      conv[u, v] :> u[1] v[2] - u[2] v[1],
-      conv[u, X_] :> u[1] comp[X, 2] - u[2] comp[X, 1],
-      conv[v, Y_] :> v[1] comp[Y, 2] - v[2] comp[Y, 1]
+      conv[X_, Y_] :> comp[X, 1] comp[Y, 2] - comp[X, 2] comp[Y, 1]
     };
     term = Expand[term];
     monomials = If[Head[term] === Plus, List @@ term, {term}];
@@ -291,12 +259,12 @@ integrateGaussian[polynom_, u_, v_, T_] := Module[
       mon = monomials[[m]];
       If[mon === 0, Continue[]];
 
-      U = Table[Exponent[mon, u[i]], {i, 1, 2}];
-      V = Table[Exponent[mon, v[i]], {i, 1, 2}];
+      U = Table[Exponent[mon, comp[u, i]], {i, 1, 2}];
+      V = Table[Exponent[mon, comp[v, i]], {i, 1, 2}];
 
       (* Non-zero only if U1 == V2 and U2 == V1 *)
       If[U[[1]] == V[[2]] && U[[2]] == V[[1]],
-        external = mon /. {u[1] -> 1, u[2] -> 1, v[1] -> 1, v[2] -> 1};
+        external = mon /. {comp[u, 1] -> 1, comp[u, 2] -> 1, comp[v, 1] -> 1, comp[v, 2] -> 1};
         result = result + (1/T^2) * (I/T)^(U[[1]] + U[[2]]) * (-1)^U[[2]] * U[[1]]! * U[[2]]! * external;
       ];
     , {m, 1, Length[monomials]}];
