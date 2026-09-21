@@ -4,8 +4,8 @@
 (*  Package: HSmachinery.m                                          *)
 (*  Description: Tools for working with HS generating systems       *)
 (*  Authors: Abrogolat, Qwen3.7, DeepSeek AI                        *)
-(*  Date: 2026-09-20                                                *)
-(*  Version: 1.1.1                                                  *)
+(*  Date: 2026-09-22                                                *)
+(*  Version: 1.1.2                                                  *)
 (* ================================================================ *)
 
 BeginPackage["HSmachinery`"]
@@ -97,12 +97,6 @@ conv[0, a_] := 0
 comp[a_ + b_, i_] := comp[a, i] + comp[b, i]
 comp[c_ a_, i_] := c comp[a, i] /; ScalarQ[c]
 comp[0, i_] := 0
-
-(* ---------- Epsilon tensor ---------- *)
-eps[1, 2] = 1;
-eps[2, 1] = -1;
-eps[1, 1] = 0;
-eps[2, 2] = 0;
 
 (* ---------- Helper: Extract T, A, B, C from exponent ---------- *)
 extractExponent[exp_, u_, v_] := Module[
