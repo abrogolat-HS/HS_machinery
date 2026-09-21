@@ -5,7 +5,7 @@
 (*  Description: Tools for working with HS generating systems       *)
 (*  Authors: Abrogolat, Qwen3.7, DeepSeek AI                        *)
 (*  Date: 2026-09-22                                                *)
-(*  Version: 1.1.2                                                  *)
+(*  Version: 1.1.3                                                  *)
 (* ================================================================ *)
 
 BeginPackage["HSmachinery`"]
@@ -104,12 +104,13 @@ extractExponent[exp_, u_, v_] := Module[
 
   expanded = Expand[exp];
 
-  (* Extract all terms that are a scalar coefficient times a single conv *)
-  terms = Cases[expanded,
-    c_. * conv[a_, b_] /; FreeQ[c, conv] :> {c, a, b},
-    {1}
-  ];
+  (* Turn the sum into a list of monomials *)
+  terms = If[Head[expanded] === Plus, List @@ expanded, {expanded}];
 
+  (* Match each monomial as a whole, capturing any leading coefficient *)
+  terms = Cases[terms, c_. * conv[a_, b_] /; FreeQ[c, conv] :> {c, a, b}];
+
+  Print[terms];
   T = 0;
   A = 0;
   B = 0;
@@ -134,8 +135,7 @@ extractExponent[exp_, u_, v_] := Module[
   {T, A, B, C}
 ];
 
-
-
+(* ---------- Public API: reduceToSpinorInvariants ---------- *)
 reduceToSpinorInvariants[poly_] := Module[
   {p, compVars, spinorsInPoly, terms, homogeneousParts, result = 0,
    d, k, pairs, basis, monomials, target, basisMonomialsComp,
