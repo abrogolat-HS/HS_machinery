@@ -1,17 +1,24 @@
-(* ::Package:: *)
-
 (* ================================================================ *)
 (*  Package: HSmachinery.m                                          *)
 (*  Description: Tools for working with HS generating systems       *)
 (*  Authors: Abrogolat, Qwen3.7, DeepSeek AI                        *)
-(*  Date: 2026-09-22                                                *)
-(*  Version: 1.1.3                                                  *)
+(*  Date: 2026-10-08                                                *)
+(*  Version: 1.2.1                                                  *)
 (* ================================================================ *)
 
 BeginPackage["HSmachinery`"]
 
 (* --- Public API Usage Messages --- *)
 spinors::usage = "spinors[vars] declares vars as spinor variables for use in convolutions and integrations.";
+
+AtomicSpinorQ::usage =
+"AtomicSpinorQ[expr] returns True if expr is literally one of the \
+declared spinor symbols (or a list thereof). Returns False for \
+composite expressions such as 2 z, z + y, or conv[z, y].";
+
+SpinorQ::usage =
+"SpinorQ[expr] returns True if expr contains any spinor dependence \
+outside of conv[...] objects. A list is spinorial if every element is.";
 
 conv::usage = "conv[a, b] is the antisymmetric Sp(2) convolution of two spinors a and b.";
 
@@ -42,12 +49,16 @@ spinors z, y must already be declared via spinors[]. The result is \
 auxiliary spinor pairs.";
 
 homotopy::usage =
-  "Homotopy[{poly, exp}, {z, \[Theta]}, {\[Tau], q}, degree] computes the shifted \
+"Homotopy[{poly, exp}, {z, \[Theta]}, {\[Tau], q}, degree] computes the shifted \
 homotopy of polynomial poly times exponential expression exp in the \
 spinor variables z and \[Theta], with homotopy parameter \[Tau] and \
 spinor shift q. degree must be 1 (linear in \[Theta]) or 2 (quadratic in \[Theta]). z, \[Theta] and q \
 must belong to $Spinors.";
 
+reorder::usage = "reorder[{poly, exp}, {z, y}, \[Beta], degree] applies the \[Beta]-reordering operator \
+(with restreching z and \[Theta]) to the function poly*Exp[I exp] with respect to the variables z and y.\
+degree stays for \[Theta]-degree of the function.";
+ 
 Begin["`Private`"]
 
 (* --- Initialization --- *)
@@ -74,7 +85,7 @@ SpinorQ[expr_]  := !ScalarQ[expr];           (* everything else *)
 SpinorQ[{}]     := False;                    (* {} is not spinorial *)
 
 (* Atomic: x is literally one of the declared spinor symbols *)
-AtomicSpinorQ[x_]      := MemberQ[$Spinors, x];
+AtomicSpinorQ[x_Symbol]      := MemberQ[$Spinors, x];
 AtomicSpinorQ[{xs__}]  := VectorQ[{xs}, AtomicSpinorQ];
 AtomicSpinorQ[_]       := False;   (* e.g. 2 z, z + y, conv[z,y], or {} *)
 
@@ -110,7 +121,6 @@ extractExponent[exp_, u_, v_] := Module[
   (* Match each monomial as a whole, capturing any leading coefficient *)
   terms = Cases[terms, c_. * conv[a_, b_] /; FreeQ[c, conv] :> {c, a, b}];
 
-  Print[terms];
   T = 0;
   A = 0;
   B = 0;
@@ -135,7 +145,6 @@ extractExponent[exp_, u_, v_] := Module[
   {T, A, B, C}
 ];
 
-(* ---------- Public API: reduceToSpinorInvariants ---------- *)
 reduceToSpinorInvariants[poly_] := Module[
   {p, compVars, spinorsInPoly, terms, homogeneousParts, result = 0,
    d, k, pairs, basis, monomials, target, basisMonomialsComp,
@@ -231,7 +240,6 @@ reduceToSpinorInvariants[poly_] := Module[
 ];
 
 
-
 (* ---------- Core: Gaussian integration over u, v ---------- *)
 integrateGaussian[polynom_, u_, v_, T_] := Module[
   {expanded, terms, result = 0, term, monomials, mon, U, V, external},
@@ -293,7 +301,6 @@ integratePair[{polynom_, exponent_}, {u_Symbol, v_Symbol}] := Module[
 
 integratePair::badvars = "Integration variables must be a list of two unevaluated symbols, e.g., {u, v}. Use Clear[u, v] if needed.";
 integratePair::zeroT = "The coefficient T of conv[u, v] in the exponent is zero. Gaussian integration requires T != 0.";
-
 
 (* ---------- Public API: starProduct ---------- *)
 (* Declare temporary spinors locally without affecting global $Spinors *)
@@ -436,7 +443,6 @@ starProductHol[___] := (
 starProduct::invspinors = "`1`";
 
 
-
 (* ---------- Public API: Homotopy ---------- *)
 homotopy[{poly_, exp_}, {z_, \[Theta]_}, {\[Tau]_, q_}, degree_Integer] /;
   SpinorQ[q]&&AtomicSpinorQ[{z, \[Theta]}] :=
@@ -467,7 +473,30 @@ Homotopy::badArgs =
   "Arguments `1` do not match the expected signature \
 Homotopy[{poly, exp}, {z, \[Theta]}, {\[Tau], p}, degree].";
 
+(* ---------- Public API: reorder ---------- *)
+With[{tempSpinors = {s, t}},
+  reorder[{poly_, exp_}, {z_, y_}, \[Beta]_, degree_] /; AtomicSpinorQ[{z, y}] :=
+    Module[{
+      oldSpinors = $Spinors,
+      shiftedPoly, shiftedExp, result
+    },
+      (* Temporarily extend spinor list with auxiliary variables s and t *)
+      $Spinors = Join[$Spinors, tempSpinors];
+      
+      (* Apply \[Beta]-shifts to polynomial and exponent *)
+      shiftedPoly = (poly * (1 - \[Beta])^degree) /. {z -> (1 - \[Beta]) z + \[Beta] t, y -> y + s};
+      shiftedExp = conv[s,t] + (exp /. {z -> (1 - \[Beta]) z + \[Beta] t, y -> y + s});
+      
+      (* Perform Gaussian integration over auxiliary spinor pair {s, t} *)
+      result = integratePair[{shiftedPoly, shiftedExp}, {s, t}];
+      
+      (* Restore original spinor list to prevent side effects *)
+      $Spinors = oldSpinors;
+      
+      result
+    ]
+];
+
 
 End[]
 EndPackage[]
-
