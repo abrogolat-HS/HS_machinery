@@ -370,7 +370,7 @@ With[{tempSpinors = {s, t, sb, tb}},
     
     (* Return final result *)
     outerResult
-  ] /; VectorQ[{z, y, zb, yb}, MemberQ[$Spinors, #] &]
+  ] /; AtomicSpinorQ[{z, y, zb, yb}]
 ];
 
 (* Fallback message if undeclared spinors are passed *)
@@ -432,7 +432,7 @@ With[{tempSpinors = {s, t}},
     
     (* Return final result *)
     outerResult
-  ] /; VectorQ[{z, y}, MemberQ[$Spinors, #] &]
+  ] /; AtomicSpinorQ[{z, y}]
 ];
 
 (* Fallback message if undeclared spinors are passed *)
